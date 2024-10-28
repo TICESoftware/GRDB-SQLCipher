@@ -14,14 +14,23 @@ mkdir -p "${workdir}/Logs"
 grdb_dir="${workdir}/GRDB-source"
 sqlcipher_dir="${workdir}/sqlcipher-source"
 
-print_usage_and_exit() {
-	cat <<- EOF
-	Usage:
-	  $ $(basename "$0") [-v] [-h] [<grdb_tag>]
+# For debug uncomment selectively
+# workdir="/var/folders/d5/vbxjsy7967g9x3twy08jyggm0000gn/T/tmp.wlUxvocA0c"
+# new_version="3.0.6"
+# grdb_tag="v7.0.0-beta.6"
+# sqlcipher_tag="v4.6.1"
+# xcframework_zip="${workdir}/GRDB.xcframework.zip"
 
-	Options:
-	 -h      Show this message
-	 -v      Verbose output
+export new_version upstream_version="${grdb_tag#v}" sqlcipher_version="${sqlcipher_tag#v}"
+
+print_usage_and_exit() {
+	cat <<-EOF
+		Usage:
+		  $ $(basename "$0") [-v] [-h] [<grdb_tag>]
+
+		Options:
+		 -h      Show this message
+		 -v      Verbose output
 	EOF
 
 	exit 1
@@ -30,18 +39,17 @@ print_usage_and_exit() {
 read_command_line_arguments() {
 	while getopts 'hv' OPTION; do
 		case "${OPTION}" in
-			h)
-				print_usage_and_exit
-				;;
-			v)
-				mute=
-				;;
-			*)
-				;;
+		h)
+			print_usage_and_exit
+			;;
+		v)
+			mute=
+			;;
+		*) ;;
 		esac
 	done
 
-	shift $((OPTIND-1))
+	shift $((OPTIND - 1))
 
 	grdb_tag="$1"
 	if [[ -n "$grdb_tag" ]]; then
@@ -84,26 +92,26 @@ update_readme() {
 
 	export new_version upstream_version="${grdb_tag#v}" sqlcipher_version="${sqlcipher_tag#v}"
 
-	# Check if versions are the same as before to skip release	
-	if [[ "${current_upstream_version}" == "${upstream_version}" ]] && \
-		[[ "${current_sqlcipher_version}" == "${sqlcipher_version}" ]] && \
+	# Check if versions are the same as before to skip release
+	if [[ "${current_upstream_version}" == "${upstream_version}" ]] &&
+		[[ "${current_sqlcipher_version}" == "${sqlcipher_version}" ]] &&
 		[[ -z "$force_release" ]]; then
 		echo "GRDB.swift (${upstream_version}) and SQLCipher (${sqlcipher_version}) versions did not change. Skipping release."
 		exit 1
 	fi
 
-	cat <<- EOF
+	cat <<-EOF
 
-	Inline GRDB.swift current version: ${current_version}
-	Upstream GRDB.swift version: ${current_upstream_version} -> ${upstream_version}
-	SQLCipher version: ${current_sqlcipher_version} -> ${sqlcipher_version}
+		Inline GRDB.swift current version: ${current_version}
+		Upstream GRDB.swift version: ${current_upstream_version} -> ${upstream_version}
+		SQLCipher version: ${current_sqlcipher_version} -> ${sqlcipher_version}
 	EOF
 
 	while ! [[ "${new_version}" =~ [0-9]\.[0-9]\.[0-9] ]]; do
-		read -rp "Input Inline GRDB.swift desired version number (x.y.z): " new_version < /dev/tty
+		read -rp "Input Inline GRDB.swift desired version number (x.y.z): " new_version </dev/tty
 	done
 
-	envsubst < "${cwd}/assets/README.md.in" > README.md
+	envsubst <"${cwd}/assets/README.md.in" >README.md
 
 	echo "Updated README.md ✅"
 	echo ""
@@ -114,7 +122,10 @@ build_sqlcipher() {
 	local header_path="${sqlcipher_destdir}/sqlite3.h"
 	local impl_path="${sqlcipher_destdir}/sqlite3.c"
 
-	eval pushd "$sqlcipher_dir" "$mute" || { echo "pushd failed"; exit 1; }
+	eval pushd "$sqlcipher_dir" "$mute" || {
+		echo "pushd failed"
+		exit 1
+	}
 
 	printf '%s' "Configuring SQLCipher ... "
 	eval ./configure --with-crypto-lib=none "$mute"
@@ -125,7 +136,10 @@ build_sqlcipher() {
 	eval make -j"${ncpu}" sqlite3.c "$mute"
 	echo "✅"
 
-	eval popd "$mute" || { echo "popd failed"; exit 1; }
+	eval popd "$mute" || {
+		echo "popd failed"
+		exit 1
+	}
 
 	printf '%s' "Moving SQLCipher artifacts into place ... "
 	rm -f "$header_path" "$impl_path"
@@ -134,8 +148,8 @@ build_sqlcipher() {
 
 	# Including param.h unconditionally removes compile time
 	# warnings about ambiguous MIN and MAX macros.
-	echo "#include <sys/param.h>" > "$impl_path"
-	cat "${sqlcipher_dir}/sqlite3.c" >> "${impl_path}"
+	echo "#include <sys/param.h>" >"$impl_path"
+	cat "${sqlcipher_dir}/sqlite3.c" >>"${impl_path}"
 	echo "✅"
 }
 
@@ -144,26 +158,26 @@ patch_grdb() {
 	local grdb_xcodeproj_file="${grdb_dir}/GRDB.xcodeproj"
 
 	printf '%s' "Patching GRDB ... "
-	: > "${grdb_dir}/GRDB/Export.swift"
+	: >"${grdb_dir}/GRDB/Export.swift"
 	# echo '#import "sqlite3.h"' > "${grdb_dir}/Support/GRDB-Bridging.h"
-	echo "#include \"${grdb_dir}/SQLCipher.xcconfig\"" >> "${grdb_dir}/Support/GRDBDeploymentTarget.xcconfig"
+	echo "#include \"${grdb_dir}/SQLCipher.xcconfig\"" >>"${grdb_dir}/Support/GRDBDeploymentTarget.xcconfig"
 	# sed -i -E 's/<sqlite3.h>/"sqlite3.h"/' "${grdb_dir}/Support/grdb_config.h"
 
-	# Remove SQLCipher import statements	
+	# Remove SQLCipher import statements
 	find "${grdb_dir}" -name "*.swift" -type f -exec sed -i '' 's/import SQLCipher/\/\/import SQLCipher/g' {} +
 
-	if patch -s -p1 -f -d "$grdb_dir" < "$patch_file"; then
+	if patch -s -p1 -f -d "$grdb_dir" <"$patch_file"; then
 		echo "✅"
 	else
 		echo "❌"
 		cat <<-EOF
-		Failed to automatically patch GRDB.swift Xcode project file. Please follow instructions for manual patching:
-			1. After you confirm reading instructions, two windows will open:
-				* Xcode, with GRDB.swift project
-				* Finder, with GRDB source code directory (look for sqlite3.h and sqlite3.c files)
-			2. Drag sqlite3.h and sqlite3.c to the Xcode project under GRDB directory. Add both files to GRDB target.
-			3. Select sqlite3.h in Xcode, open right hand side panel and adjust Target Membership by marking the header file as Public.
-			4. Close Xcode project, go back to terminal and press Ctrl+C to continue.
+			Failed to automatically patch GRDB.swift Xcode project file. Please follow instructions for manual patching:
+				1. After you confirm reading instructions, two windows will open:
+					* Xcode, with GRDB.swift project
+					* Finder, with GRDB source code directory (look for sqlite3.h and sqlite3.c files)
+				2. Drag sqlite3.h and sqlite3.c to the Xcode project under GRDB directory. Add both files to GRDB target.
+				3. Select sqlite3.h in Xcode, open right hand side panel and adjust Target Membership by marking the header file as Public.
+				4. Close Xcode project, go back to terminal and press Ctrl+C to continue.
 		EOF
 
 		read -n 1 -srp "Press any key to continue"
@@ -178,15 +192,15 @@ patch_grdb() {
 		local diff
 		diff=$(git diff "GRDB.xcodeproj/project.pbxproj")
 		popd >/dev/null 2>&1
-		echo "$diff" > "${patch_file}"
+		echo "$diff" >"${patch_file}"
 		echo "Updated Xcode project patch file ✅"
 	fi
 }
 
 setup_log_formatter() {
-	if command -v xcbeautify &> /dev/null; then
+	if command -v xcbeautify &>/dev/null; then
 		log_formatter='xcbeautify'
-	elif command -v xcpretty &> /dev/null; then
+	elif command -v xcpretty &>/dev/null; then
 		log_formatter='xcpretty'
 	else
 		echo
@@ -224,15 +238,15 @@ build_and_test_release() {
 		-project "${grdb_dir}/GRDB.xcodeproj" \
 		-scheme "GRDB" \
 		-derivedDataPath "$derived_data_dir" \
-		-skip-testing:GRDBTests/EncryptionTests/testSQLCipher3Compatibility \
-		| tee -a "$log_file" | $log_formatter 2>&1; then
+		-skip-testing:GRDBTests/EncryptionTests/testSQLCipher3Compatibility |
+		tee -a "$log_file" | $log_formatter 2>&1; then
 
 		echo "Unit tests succeeded ✅"
 	else
 		cat <<-EOF
-		Unit tests failed ❌
-		See log file at ${log_file} for more info.
-		Rerun with -f to skip testing.
+			Unit tests failed ❌
+			See log file at ${log_file} for more info.
+			Rerun with -f to skip testing.
 		EOF
 		exit 1
 	fi
@@ -262,36 +276,79 @@ build_archive() {
 }
 
 build_xcframework() {
+	# Add these at the start
+	export COPYFILE_DISABLE=1
+	export COPY_EXTENDED_ATTRIBUTES_DISABLE=true
+
 	local derived_data="${workdir}/DerivedData"
 	local xcframework="${workdir}/GRDB.xcframework"
 	xcframework_zip="${workdir}/GRDB.xcframework.zip"
 	local archives_dir="archives"
 	local archives_path="${workdir}/${archives_dir}"
 
-	build_opts=("BUILD_LIBRARY_FOR_DISTRIBUTION=YES" "SKIP_INSTALL=NO" "ONLY_ACTIVE_ARCH=NO")
+	build_opts=(
+		"BUILD_LIBRARY_FOR_DISTRIBUTION=YES"
+		"SKIP_INSTALL=NO"
+		"ONLY_ACTIVE_ARCH=NO"
+	)
 
 	echo ""
 	echo "Building XCFramework ⚙️"
 
 	rm -rf "${derived_data}" "${archives_path}" "${xcframework}"
 
+	# More aggressive cleanup of resource forks and metadata
+	clean_metadata() {
+		local dir="$1"
+		# Remove resource fork files
+		find "$dir" -name "._*" -delete
+		# Remove .DS_Store files
+		find "$dir" -name ".DS_Store" -delete
+		# Remove extended attributes recursively
+		xattr -cr "$dir" 2>/dev/null || true
+	}
+
+	# Clean before building
+	clean_metadata "${workdir}"
+
+	build_archive "macOS" "$archives_path"
 	build_archive "iOS" "$archives_path"
 	build_archive "iOS Simulator" "$archives_path"
-	build_archive "macOS" "$archives_path"
+
+	# Remove any ._ files before creating xcframework
+	find "${archives_path}" -name "._*" -delete
 
 	printf '%s' "Creating XCFramework ... "
 	pushd "$workdir" >/dev/null 2>&1
+
 	xcodebuild -create-xcframework \
- 		-archive "${archives_dir}/GRDB-iOS.xcarchive" -framework GRDB.framework \
-		-archive "${archives_dir}/GRDB-iOS Simulator.xcarchive" -framework GRDB.framework \
 		-archive "${archives_dir}/GRDB-macOS.xcarchive" -framework GRDB.framework \
+		-archive "${archives_dir}/GRDB-iOS.xcarchive" -framework GRDB.framework \
+		-archive "${archives_dir}/GRDB-iOS Simulator.xcarchive" -framework GRDB.framework \
 		-output "${xcframework}" >/dev/null 2>&1
 	popd >/dev/null 2>&1
 	echo "✅"
-	
+
+	# Clean xcframework after creation
+	clean_metadata "${xcframework}"
+
+	# Compress using ditto with strict options
 	printf '%s' "Compressing XCFramework ... "
 	rm -rf "$xcframework_zip"
-	ditto -c -k --keepParent "$xcframework" "$xcframework_zip"
+	if ! ditto -c -k --keepParent --noextattr --norsrc "$xcframework" "$xcframework_zip"; then
+		echo "❌"
+		echo "Failed to compress XCFramework"
+		exit 1
+	fi
+	echo "✅"
+
+	# Final verification
+	printf '%s' "Verifying compressed framework ... "
+	if ! unzip -t "$xcframework_zip" >/dev/null 2>&1; then
+		echo "❌"
+		echo "Compressed framework verification failed"
+		exit 1
+	fi
 	echo "✅"
 }
 
@@ -299,7 +356,7 @@ update_swift_package() {
 	printf '%s' "Updating Package.swift ... "
 	export checksum
 	checksum=$(swift package compute-checksum "$xcframework_zip")
-	envsubst < "${cwd}/assets/Package.swift.in" > "${cwd}/Package.swift"
+	envsubst <"${cwd}/assets/Package.swift.in" >"${cwd}/Package.swift"
 	echo "✅"
 }
 
@@ -316,9 +373,9 @@ make_release() {
 
 	gh release create "$new_version" --generate-notes "${xcframework_zip}" --repo inlinehq/GRDB.swift
 
-	cat <<- EOF
+	cat <<-EOF
 
-	🎉 Release is ready at https://github.com/inlinehq/GRDB.swift/releases/tag/${new_version}
+		🎉 Release is ready at https://github.com/inlinehq/GRDB.swift/releases/tag/${new_version}
 	EOF
 }
 
