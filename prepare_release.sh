@@ -84,6 +84,7 @@ update_readme() {
 
 	export new_version upstream_version="${grdb_tag#v}" sqlcipher_version="${sqlcipher_tag#v}"
 
+	# Check if versions are the same as before to skip release	
 	if [[ "${current_upstream_version}" == "${upstream_version}" ]] && \
 		[[ "${current_sqlcipher_version}" == "${sqlcipher_version}" ]] && \
 		[[ -z "$force_release" ]]; then
@@ -147,6 +148,9 @@ patch_grdb() {
 	# echo '#import "sqlite3.h"' > "${grdb_dir}/Support/GRDB-Bridging.h"
 	echo "#include \"${grdb_dir}/SQLCipher.xcconfig\"" >> "${grdb_dir}/Support/GRDBDeploymentTarget.xcconfig"
 	# sed -i -E 's/<sqlite3.h>/"sqlite3.h"/' "${grdb_dir}/Support/grdb_config.h"
+
+	# Remove SQLCipher import statements	
+	find "${grdb_dir}" -name "*.swift" -type f -exec sed -i '' 's/import SQLCipher/\/\/import SQLCipher/g' {} +
 
 	if patch -s -p1 -f -d "$grdb_dir" < "$patch_file"; then
 		echo "✅"
