@@ -8,9 +8,9 @@ The default branch for this repository is `main` (as opposed to upstream's `mast
 
 ## Version
 
-- This Package: _3.0.0_
-- GRDB: _7.0.0-beta.6_
-- SQLCipher: _4.6.1_
+* This Package: *3.0.1*
+* GRDB: *7.0.0-beta.6*
+* SQLCipher: *4.6.1*
 
 ## Contributions
 
