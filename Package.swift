@@ -15,8 +15,8 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "GRDB",
-            url: "https://github.com/DuckDuckGo/GRDB.swift/releases/download/2.4.2/GRDB.xcframework.zip",
-            checksum: "5380265b0e70f0ed28eb1e12640eb6cde5e4bfd39893c86b31f8d17126887174"
+            url: "https://github.com/DuckDuckGo/GRDB.swift/releases/download/3.0.0/GRDB.xcframework.zip",
+            checksum: "eaf11803cd5af81a1abe8ecf1e652f40fdbd0ed1f87865d869e545feab5bcbd4"
         ),
         .target(name: "_GRDBDummy")
     ]
