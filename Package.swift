@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "GRDB",
     platforms: [
-        .iOS(.v11),
+        .iOS(.v13),
         .macOS(.v10_15),
     ],
     products: [
@@ -15,8 +15,8 @@ let package = Package(
     targets: [
         .binaryTarget(
             name: "GRDB",
-            url: "https://github.com/DuckDuckGo/GRDB.swift/releases/download/3.0.0/GRDB.xcframework.zip",
-            checksum: "eaf11803cd5af81a1abe8ecf1e652f40fdbd0ed1f87865d869e545feab5bcbd4"
+            url: "https://github.com/inlinehq/GRDB.swift/releases/download/3.0.0/GRDB.xcframework.zip",
+            checksum: "b872a487ca66a07da8f5f027803a4458c6d1658f79d2d0ab231360e4db4f3f19"
         ),
         .target(name: "_GRDBDummy")
     ]
