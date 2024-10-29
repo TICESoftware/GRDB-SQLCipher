@@ -7,19 +7,18 @@ if [[ "$1" == "-v" ]]; then
 	mute=
 fi
 
-cwd="$(dirname "${BASH_SOURCE[0]}")"
-workdir="$(mktemp -d)"
-mkdir -p "${workdir}/Logs"
-# trap 'rm -rf "$workdir"' EXIT
-grdb_dir="${workdir}/GRDB-source"
-sqlcipher_dir="${workdir}/sqlcipher-source"
-
-# For debug uncomment selectively
-# workdir="/var/folders/d5/vbxjsy7967g9x3twy08jyggm0000gn/T/tmp.wlUxvocA0c"
-# new_version="3.0.6"
+# -- For debug uncomment selectively
+# workdir="/var/folders/d5/vbxjsy7967g9x3twy08jyggm0000gn/T/tmp.X6nlENOZIM"
+# new_version="3.0.8"
 # grdb_tag="v7.0.0-beta.6"
 # sqlcipher_tag="v4.6.1"
 # xcframework_zip="${workdir}/GRDB.xcframework.zip"
+
+cwd="$(dirname "${BASH_SOURCE[0]}")"
+workdir="$(mktemp -d)"
+mkdir -p "${workdir}/Logs"
+grdb_dir="${workdir}/GRDB-source"
+sqlcipher_dir="${workdir}/sqlcipher-source"
 
 export new_version upstream_version="${grdb_tag#v}" sqlcipher_version="${sqlcipher_tag#v}"
 
@@ -93,12 +92,12 @@ update_readme() {
 	export new_version upstream_version="${grdb_tag#v}" sqlcipher_version="${sqlcipher_tag#v}"
 
 	# Check if versions are the same as before to skip release
-	if [[ "${current_upstream_version}" == "${upstream_version}" ]] &&
-		[[ "${current_sqlcipher_version}" == "${sqlcipher_version}" ]] &&
-		[[ -z "$force_release" ]]; then
-		echo "GRDB.swift (${upstream_version}) and SQLCipher (${sqlcipher_version}) versions did not change. Skipping release."
-		exit 1
-	fi
+	# if [[ "${current_upstream_version}" == "${upstream_version}" ]] &&
+	# 	[[ "${current_sqlcipher_version}" == "${sqlcipher_version}" ]] &&
+	# 	[[ -z "$force_release" ]]; then
+	# 	echo "GRDB.swift (${upstream_version}) and SQLCipher (${sqlcipher_version}) versions did not change. Skipping release."
+	# 	exit 1
+	# fi
 
 	cat <<-EOF
 
@@ -252,6 +251,25 @@ build_and_test_release() {
 	fi
 }
 
+sanitize_version() {
+	# Remove any beta/alpha suffixes and keep only the first three number groups
+	echo "${grdb_tag#v}" | sed -E 's/[-].+$//' | cut -d. -f1-3
+}
+
+update_framework_version() {
+	local clean_version=$(sanitize_version)
+	local info_plist="${grdb_dir}/Support/Info.plist"
+
+	printf '%s' "Updating framework version to ${clean_version} ... "
+	if /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${clean_version}" "$info_plist"; then
+		echo "✅"
+	else
+		echo "❌"
+		echo "Failed to update framework version in Info.plist"
+		exit 1
+	fi
+}
+
 build_archive() {
 	local platform=$1
 	local archives_path=$2
@@ -384,11 +402,14 @@ main() {
 
 	read_command_line_arguments "$@"
 
+	echo "Current grdb_tag: ${grdb_tag}" # Debug output
+
 	clone_grdb "$grdb_tag"
 	clone_sqlcipher
 	update_readme
 	build_sqlcipher
 	patch_grdb
+	update_framework_version
 	build_and_test_release
 	build_xcframework
 	update_swift_package
