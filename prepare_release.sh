@@ -21,6 +21,7 @@ grdb_dir="${workdir}/GRDB-source"
 sqlcipher_dir="${workdir}/sqlcipher-source"
 
 export new_version upstream_version="${grdb_tag#v}" sqlcipher_version="${sqlcipher_tag#v}"
+export xcode_version="$(xcodebuild -version | head -n1 | sed 's/^Xcode //')"
 
 print_usage_and_exit() {
 	cat <<-EOF
@@ -88,6 +89,7 @@ update_readme() {
 	current_version="$(git describe --tags --abbrev=0 --exclude=v* main)"
 	current_upstream_version="$(grep '\* GRDB' README.md | cut -d '*' -f 3)"
 	current_sqlcipher_version="$(grep '\* SQLCipher' README.md | cut -d '*' -f 3)"
+	current_xcode_version="$(grep '\* Xcode' README.md | cut -d '*' -f 3)"
 
 	export new_version upstream_version="${grdb_tag#v}" sqlcipher_version="${sqlcipher_tag#v}"
 
@@ -104,6 +106,7 @@ update_readme() {
 		Inline GRDB.swift current version: ${current_version}
 		Upstream GRDB.swift version: ${current_upstream_version} -> ${upstream_version}
 		SQLCipher version: ${current_sqlcipher_version} -> ${sqlcipher_version}
+		Xcode version: ${current_xcode_version} -> ${xcode_version}
 	EOF
 
 	while ! [[ "${new_version}" =~ [0-9]\.[0-9]\.[0-9] ]]; do

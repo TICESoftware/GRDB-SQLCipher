@@ -11,6 +11,7 @@ The default branch for this repository is `main` (as opposed to upstream's `mast
 * This Package: *${new_version}*
 * GRDB: *${upstream_version}*
 * SQLCipher: *${sqlcipher_version}*
+* Xcode: *${xcode_version}*
 
 ## Contributions
 
