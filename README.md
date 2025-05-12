@@ -8,10 +8,10 @@ The default branch for this repository is `main` (as opposed to upstream's `mast
 
 ## Version
 
-* This Package: *3.2.0*
-* GRDB: *7.4.1*
-* SQLCipher: *4.7.0*
-* Xcode: *16.2*
+* This Package: *3.3.0*
+* GRDB: *7.5.0*
+* SQLCipher: *4.8.0*
+* Xcode: *16.3*
 
 ## Contributions
 
